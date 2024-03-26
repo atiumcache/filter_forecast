@@ -457,7 +457,6 @@ class LSODASolver(Integrator):
         super().__init__()
 
     def propagate(self,particleArray:List[Particle],ctx:Context)->List[Particle]: 
-
         """Propagates the state forward one step and returns an array of states and observations across the the integration period
         
         Args: 
@@ -474,19 +473,26 @@ class LSODASolver(Integrator):
         
 
         for i,particle in enumerate(particleArray): 
-            
-            y0 = np.concatenate((particle.state,particle.observation))  # Initial state of the system
 
+            y0 = np.concatenate((particle.state,particle.observation))  # Initial state of the system
+            
             t_span = [0.0,1.0]
-            sol =  solve_ivp(fun=lambda t,y: RHS_H(t,y,particle.param), 
+            par = particle.param
+            sol =  solve_ivp(fun=lambda t,z: RHS_H(t,z,par), 
+                             jac=lambda t,z:Jacobian(t,z,par), 
                              t_span=(0.0,1.0),
-                             y0=y0,
+                             y0=particle.state,
                              t_eval=t_span,
                              method='RK45',rtol=1e-3,atol=1e-3)
             
             particleArray[i].state = sol.y[:ctx.state_size,1]
+            #particleArray[i].observation = np.array([sol.y[3,1]])
             particleArray[i].observation = np.array([sol.y[-1,1]-sol.y[-1,0]])
-            #particleArray[i].observation = sol.y[3,1]
+
+
+            if(np.any(np.isnan(particleArray[i].state))): 
+                    print(f"NaN state at particle: {i}")
+
 
         return particleArray 
 
