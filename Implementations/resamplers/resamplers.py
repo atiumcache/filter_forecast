@@ -204,3 +204,80 @@ class PoissonResample(Resampler):
 
         return particleArray
 
+class NBinomResampleExperiment(Resampler): 
+    def __init__(self) -> None:
+        super().__init__(likelihood=likelihood_NB_r)
+
+    '''weights[i] += (self.likelihood(observation=observation[j],
+                                               particle_observation=particle.observation[j],
+                                               std=particle.param['std']))'''
+    def compute_prior_weights(self, ctx:Context,observation: NDArray, particleArray:List[Particle]) -> NDArray[np.float64]:
+        weights = np.zeros(len(particleArray))#initialize weights as an array of zeros
+
+        for i in range(len(particleArray)): 
+            weights[i] = self.likelihood(np.round(observation),particleArray[i].observation,R=particleArray[i].param['R'])
+            '''iterate over the particles and call the likelihood function for each one '''
+
+     
+
+        '''This loop sets all weights that are out of bounds to a very small non-zero number'''
+        for j in range(len(particleArray)):  
+            if(weights[j] == 0):
+                weights[j] = 10**-300 
+            elif(np.isnan(weights[j])):
+                weights[j] = 10**-300
+            elif(np.isinf(weights[j])):
+                weights[j] = 10**-300
+
+        weights = weights/np.sum(weights)#normalize the weights
+        
+        
+        return np.squeeze(weights)
+    
+    def compute_pos_weights(self,observation: NDArray, particleArray:List[Particle]) -> NDArray[np.float64]:
+        weights = np.zeros(len(particleArray))#initialize weights as an array of zeros
+
+        for i in range(len(particleArray)): 
+            weights[i] = self.likelihood(np.round(observation),particleArray[i].observation,R=particleArray[i].param['R'])
+            '''iterate over the particles and call the likelihood function for each one '''
+
+        
+        #max_particle = particleArray[np.argmax(weights)]
+
+        # R = (max_particle.observation)**2 / (  - max_particle.observation)
+        #weights = np.array(self.likelihood(np.round(observation),[particle.observation for particle in particleArray],[particle.dispersion for particle in particleArray]))
+
+        '''This loop sets all weights that are out of bounds to a very small non-zero number'''
+        for j in range(len(particleArray)):  
+            if(weights[j] == 0):
+                weights[j] = 10**-300 
+            elif(np.isnan(weights[j])):
+                weights[j] = 10**-300
+            elif(np.isinf(weights[j])):
+                weights[j] = 10**-300
+
+        weights = weights/np.sum(weights)#normalize the weights
+        
+        
+        return np.squeeze(weights)
+    
+    def resample(self, ctx: Context,particleArray:List[Particle]) -> List[Particle]:
+        '''This is a basic resampling method, more advanced methods like systematic resampling need to override this'''    
+
+        indexes = np.arange(ctx.particle_count) #create a cumulative ndarray from 0 to particle_count
+
+        #The numpy resampling algorithm, see jupyter notebnook resampling.ipynb for more details
+        new_particle_indexes = ctx.rng.choice(a=indexes, size=ctx.particle_count, replace=True, p=ctx.prior_weights)
+
+        particleCopy = particleArray.copy()#copy the particle array refs to ensure we don't overwrite particles
+
+        #this loop reindexes the particles by rebuilding the particles
+        for i in range(len(particleArray)): 
+            particleArray[i] = Particle(particleCopy[new_particle_indexes[i]].param.copy(),
+                                        particleCopy[new_particle_indexes[i]].state.copy(),
+                                        particleCopy[new_particle_indexes[i]].observation)
+
+
+        
+
+        return particleArray
