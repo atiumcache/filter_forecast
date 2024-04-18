@@ -50,6 +50,7 @@ class Context:
     population: int = 100000 #estimate of the total population 
     estimated_params: Dict[str,int] = field(default_factory=lambda: dict()) #number of estimated parameters in the model 
     forward_estimation: int = 7 #The number of subsequent states to be considered in the likelihood function
+    resample_size: int = 5 # for the resampling experiment. 
 
 @dataclass
 class SMCContext: 
