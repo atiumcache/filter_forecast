@@ -97,4 +97,8 @@ def log_likelihood_NB(observation:NDArray[np.int_],particle_observation:NDArray[
     v2 = observation[observation>=0]
     x = loggamma(v2+R)-loggamma(v2+1)-loggamma(R)+R*np.log(v1)+v2*np.log(1-v1)
 
+<<<<<<< HEAD
     return x
+=======
+    return x
+>>>>>>> c47d207 (small change)
