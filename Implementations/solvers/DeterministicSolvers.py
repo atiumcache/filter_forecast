@@ -404,47 +404,38 @@ class EulerSolverExperiment(Integrator):
     def __init__(self) -> None:
         super().__init__()
 
-    '''Propagates the state forward one step and returns an array of states and observations across the the integration period'''
+    '''Propagates the state forward one step and returns an array of states and observations across the integration period'''
     def propagate(self,particleArray:List[Particle],ctx:Context)->List[Particle]: 
 
         dt = 1
         #zero out the particleArray
         for particle in particleArray:
-            particle.observation = np.array([0 for _ in range(ctx.forward_estimation)])
+            particle.observation = np.zeros_like(particle.observation)
 
 
-        for j,_ in enumerate(particleArray):
+        for particle in particleArray:
 
             #one step forward 
 
             
             for _ in range(int(1/dt)):
+                '''This loop runs over the particleArray, performing the integration in RHS for each one'''  
 
-                '''This loop runs over the particleArray, performing the integration in RHS for each one'''
-
-                d_RHS,sim_obv =self.RHS_H(particleArray[j].state,particleArray[j].param)
-
-                particleArray[j].state += d_RHS*dt
-                if(np.any(np.isnan(particleArray[j].state))): 
-                    print(f"NaN state at particle: {j}")
-                particleArray[j].observation[0] += d_RHS[3] * dt
-    
+                for i,_ in enumerate(particle.observation):
+                    # This loop performs the integration for each of the 5 models contained in each particle.
+                    RHS_result = self.RHS_Logistic(particle.state[i], particle.param)
+                    particle.state[i] += RHS_result[0] * dt
+                    particle.observation[i] += RHS_result[1] *dt
+        
 
         return particleArray
     
-    def RHS_H(self,state:NDArray[np.int_],param:Dict[str,int]):
+    def RHS_Logistic(self,state:NDArray[np.float_],param:Dict[str,float]):
     #params has all the parameters – beta, gamma
     #state is a numpy array
 
-        S,I,R,H = state #unpack the state variables
-        N = S + I + R + H #compute the total population
+        dN = param["R"] * state[0] * (1 - state[0]/param["k"]) - param["mu"]*state[0]
+        new_N = param["R"] * state[0] * (1 - state[0]/param["k"])
 
-        new_H = ((1/param['D'])*param['gamma']) * I #our observation value for the particle  
-
-        '''The state transitions of the ODE model is below'''
-        dS = -param['beta']*(S*I)/N + (1/param['L'])*R 
-        dI = param['beta']*S*I/N-(1/param['D'])*I
-        dR = (1/param['hosp']) * H + ((1/param['D'])*(1-(param['gamma']))*I)-(1/param['L'])*R 
-        dH = (1/param['D'])*(param['gamma']) * I - (1/param['hosp']) * H 
-
-        return np.array([dS,dI,dR,dH]),new_H
+        return np.array[dN, new_N]
+    
