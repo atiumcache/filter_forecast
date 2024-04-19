@@ -49,26 +49,7 @@ class Context:
     population: int = field(default=100_000) #estimate of the total population 
     estimated_params: Dict[str,int] = field(default_factory=lambda: dict()) #number of estimated parameters in the model 
     forward_estimation: int = 7 #The number of subsequent states to be considered in the likelihood function
-<<<<<<< HEAD
-<<<<<<< HEAD
     run_sankey: bool = False # Set False to turn off Sankey code
-=======
-=======
->>>>>>> a6c9d23cd15d2e67e01142628f4956c907d399eb
-    resample_size: int = 5 # for the resampling experiment. 
-
-@dataclass
-class SMCContext: 
-    '''Meta data about the algorithm'''
-    weights: NDArray[np.float64]
-    particle_count: int = 1000
-    clock: Clock = field(default_factory=lambda: Clock())
-    rng:random.Generator = field(default_factory=lambda: np.random.default_rng())
-    seed_size: float = 0.01 #estimate of initial percentage of infected out of the total population
-    state_size: int = 4 #number of state variables in the model
-    seed_loc: List[int] = field(default_factory=lambda: list()) #zero indexed seed location 
-    population: int = 100000 #estimate of the total population 
->>>>>>> c47d207 (small change)
 
 
 def timing(f):
@@ -114,16 +95,3 @@ def log_norm(log_weights:NDArray):
     norm = (jacob(log_weights)[-1])
     log_weights -= norm
     return log_weights
-
-
-
-
-
-
-
-
-
-
-
-
-
