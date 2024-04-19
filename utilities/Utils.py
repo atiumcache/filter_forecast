@@ -50,8 +50,11 @@ class Context:
     estimated_params: Dict[str,int] = field(default_factory=lambda: dict()) #number of estimated parameters in the model 
     forward_estimation: int = 7 #The number of subsequent states to be considered in the likelihood function
 <<<<<<< HEAD
+<<<<<<< HEAD
     run_sankey: bool = False # Set False to turn off Sankey code
 =======
+=======
+>>>>>>> a6c9d23cd15d2e67e01142628f4956c907d399eb
     resample_size: int = 5 # for the resampling experiment. 
 
 @dataclass
