@@ -596,19 +596,19 @@ class EulerSolverExperiment(Integrator):
 
                 for i,_ in enumerate(particle.observation):
                     # This loop performs the integration for each of the 5 models contained in each particle.
-                    RHS_result = self.RHS_Logistic(particle.state[i], particle.param)
+                    RHS_result = self.RHS_Logistic(particle.state[i], particle.param, i)
                     particle.state[i] += RHS_result[0] * dt
                     particle.observation[i] += RHS_result[1] *dt
         
 
         return particleArray
     
-    def RHS_Logistic(self,state:NDArray[np.float_],param:Dict[str,float]):
+    def RHS_Logistic(self,state:NDArray[np.float_],param:Dict[str,float], obs_index):
     #params has all the parameters – beta, gamma
     #state is a numpy array
 
-        dN = param["R"] * state[0] * (1 - state[0]/param["k"]) - param["mu"]*state[0]
-        new_N = param["R"] * state[0] * (1 - state[0]/param["k"])
+        dN = param["r"] * state * (1 - state/param["k"][obs_index]) - param["mu"]*state
+        new_N = param["r"] * state * (1 - state/param["k"][obs_index])
 
-        return np.array[dN, new_N]
+        return np.array([dN, new_N])
     

@@ -24,6 +24,7 @@ class ESTIMATION(Enum):
     '''Enum which flags a parameter for estimation'''
     STATIC = -1
     VARIABLE = -2
+    STATIC_PER_LOCATION = -3
 
 
 @dataclass
