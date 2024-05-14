@@ -8,9 +8,6 @@ from typing import Dict,Callable
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import plotly.graph_objects as go
-import plotly.express as px
-from Implementations.sankey import visualize_particles
 
 from utilities.Utils import Context
 
@@ -29,27 +26,26 @@ class TimeDependentAlgo(Algorithm):
                 self.ctx.estimated_params[key] = ESTIMATION.VARIABLE
 
         for _ in range(self.ctx.particle_count): 
-            '''Setup the particles at t = 0, important we make a copy of the params dictionary before using it
-            to setup each particle.'''
-
+            '''Setup the particles at t = 0'''
             p_params = params.copy()
-            '''Call the priors to generate values for the estimated params and set their values in the new params.'''
             for _,(key,val) in enumerate(self.ctx.estimated_params.items()):
                 if((p_params[key] == ESTIMATION.STATIC) or (p_params[key] == ESTIMATION.VARIABLE)): 
                     p_params[key] = priors[key]()
 
-
             seeds = []
-            '''Generate seeds from U(0,seed_size*pop) in the length of the seed loc array'''
             for _ in range(len(self.ctx.seed_loc)):
                 seeds.append(self.ctx.rng.uniform(0,self.ctx.seed_size*self.ctx.population))
 
             state = np.concatenate((np.array([self.ctx.population],dtype=np.float_),[0 for _ in range(self.ctx.state_size-1)])) 
             for i in range(len(seeds)):
+
                 state[self.ctx.seed_loc[i]] += seeds[i]
                 state[0] -= seeds[i]
 
-            self.particles.append(Particle(param=p_params,state=state.copy(),observation=np.array([0 for _ in range(self.ctx.forward_estimation)])))   
+            self.particles.append(Particle(param=p_params,state=state.copy(),observation=np.array([0 for _ in range(self.ctx.forward_estimation)])))    
+
+    def forward_propagator(): 
+        '''This function simulates the 7 days data to be '''
 
 
     @timing
@@ -59,9 +55,7 @@ class TimeDependentAlgo(Algorithm):
         data1 = pd.read_csv(data_path).to_numpy()
         data1 = np.delete(data1,0,1)
 
-        "Initialize labels and first column of sankey matrix"
-        if self.ctx.run_sankey == True:
-            self.ctx.sankey_indices.append(np.arange(self.ctx.particle_count)) 
+
 
         '''Arrays to hold all the output data'''
         eta_quantiles = []
@@ -75,36 +69,20 @@ class TimeDependentAlgo(Algorithm):
         beta_quantiles = []
         beta = []
         eta = []
-        q = []
-        q_quantiles = []
         observations = []
         gamma = []
 
         while(self.ctx.clock.time < runtime): 
- 
 
-            self.particles = self.integrator.propagate(self.particles,self.ctx)
+            #one step propagation 
+            self.integrator.propagate(self.particles,self.ctx)
         
-            obv = data1[self.ctx.clock.time:self.ctx.clock.time+(self.ctx.forward_estimation)]
-
+            obv = data1[self.ctx.clock.time, :]
             self.ctx.weights = self.resampler.compute_weights(self.ctx,obv,self.particles)
-
             self.particles = self.resampler.resample(self.ctx,self.particles)
-
             self.particles = self.perturb.randomly_perturb(self.ctx,self.particles) 
-
-            beta_quantiles.append(quantiles([particle.param['beta'] for particle in self.particles]))
-            beta.append(np.mean([particle.param['beta'] for particle in self.particles]))
-
-            state.append(np.mean([particle.state for particle in self.particles],axis=0))
-            eta_quantiles.append(quantiles([particle.param['eta'] for particle in self.particles]))
-            eta.append(np.mean([particle.param['eta'] for particle in self.particles]))
-
-
-
-            gamma_quantiles.append(quantiles([particle.param['gamma'] for particle in self.particles]))
-            gamma.append(np.mean([particle.param['gamma'] for particle in self.particles]))
-            observations.append(quantiles([particle.observation for particle in self.particles]))
+            
+            
 
             print(f"Iteration: {self.ctx.clock.time}")
             self.ctx.clock.tick()
@@ -125,12 +103,7 @@ class TimeDependentAlgo(Algorithm):
         eta_quantiles = np.array(eta_quantiles)
         gamma_quantiles = np.array(gamma_quantiles)
 
-
-        # sankey test code
-        if self.ctx.run_sankey == True:
-            visualize_particles(self.ctx.particle_count, self.ctx.sankey_indices)
-
-       
+        colors = cm.plasma(np.linspace(0, 1, 12)) # type: ignore
 
 
 

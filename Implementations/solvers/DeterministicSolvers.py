@@ -188,18 +188,7 @@ class EulerSolver(Integrator):
                 if(np.any(np.isnan(particleArray[j].state))): 
                     print(f"NaN state at particle: {j}")
                 particleArray[j].observation[0] += d_RHS[3] * dt
-        
- 
-            #additional loops 
-            
-            # state = particleArray[j].state
-            # for i in range(1,ctx.forward_estimation):
-            #     for _ in range(int(1/dt)):
-
-            #         d_RHS,sim_obv = self.RHS_H(state,particleArray[j].param)
-
-            #         state += d_RHS*dt
-            #         particleArray[j].observation[i] += sim_obv * dt
+    
 
         return particleArray
 
@@ -457,7 +446,6 @@ class LSODASolver(Integrator):
         super().__init__()
 
     def propagate(self,particleArray:List[Particle],ctx:Context)->List[Particle]: 
-
         """Propagates the state forward one step and returns an array of states and observations across the the integration period
         
         Args: 
@@ -474,19 +462,23 @@ class LSODASolver(Integrator):
         
 
         for i,particle in enumerate(particleArray): 
-            
-            y0 = np.concatenate((particle.state,particle.observation))  # Initial state of the system
 
             t_span = [0.0,1.0]
-            sol =  solve_ivp(fun=lambda t,y: RHS_H(t,y,particle.param), 
+            par = particle.param
+            sol =  solve_ivp(fun=lambda t,y: RHS_H(t,y,par),  
                              t_span=(0.0,1.0),
-                             y0=y0,
+                             y0=particle.state,
                              t_eval=t_span,
                              method='RK45',rtol=1e-3,atol=1e-3)
             
             particleArray[i].state = sol.y[:ctx.state_size,1]
-            particleArray[i].observation = np.array([sol.y[-1,1]-sol.y[-1,0]])
-            #particleArray[i].observation = sol.y[3,1]
+
+            particleArray[i].observation = sol.y[ctx.state_size, 1]
+
+
+            if(np.any(np.isnan(particleArray[i].state))): 
+                    print(f"NaN state at particle: {i}")
+
 
         return particleArray 
 
@@ -579,4 +571,44 @@ class LSODACalvettiSolver(Integrator):
 
         return particleArray 
 
+    
+class EulerSolverExperiment(Integrator): 
+    '''Uses the SIRSH model with a basic euler integrator to obtain the predictions for the state'''
+    def __init__(self) -> None:
+        super().__init__()
+
+    '''Propagates the state forward one step and returns an array of states and observations across the integration period'''
+    def propagate(self,particleArray:List[Particle],ctx:Context)->List[Particle]: 
+
+        dt = 1
+        #zero out the particleArray
+        for particle in particleArray:
+            particle.observation = np.zeros_like(particle.observation)
+
+
+        for particle in particleArray:
+
+            #one step forward 
+
+            
+            for _ in range(int(1/dt)):
+                '''This loop runs over the particleArray, performing the integration in RHS for each one'''  
+
+                for i,_ in enumerate(particle.observation):
+                    # This loop performs the integration for each of the 5 models contained in each particle.
+                    RHS_result = self.RHS_Logistic(particle.state[i], particle.param, i)
+                    particle.state[i] += RHS_result[0] * dt
+                    particle.observation[i] += RHS_result[1] *dt
+        
+
+        return particleArray
+    
+    def RHS_Logistic(self,state:NDArray[np.float_],param:Dict[str,float], obs_index):
+    #params has all the parameters – beta, gamma
+    #state is a numpy array
+
+        dN = param["r"] * state * (1 - state/param["k"][obs_index]) - param["mu"]*state
+        new_N = param["r"] * state * (1 - state/param["k"][obs_index])
+
+        return np.array([dN, new_N])
     

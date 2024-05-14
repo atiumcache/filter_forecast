@@ -203,4 +203,76 @@ class PoissonResample(Resampler):
         
 
         return particleArray
+    
+class LogNBinomResampleExperiment(Resampler): 
+    def __init__(self) -> None:
+        """Resampler using a negative binomial likelihood function with estimated variance and log resampling step from 
+        C. Gentner, S. Zhang, and T. Jost, “Log-PF: particle filtering in logarithm domain,” Journal of Electrical and Computer Engineering, vol. 2018, Article ID 5763461, 11 pages, 2018."""
+        super().__init__(log_likelihood_NB)
 
+    def compute_weights(self, ctx:Context,observation: NDArray[np.int_], particleArray:List[Particle]) -> NDArray[np.float64]:
+        """Computes the prior weights of the particles given an observation at time t from the time series. 
+        
+        Args: 
+            ctx: The Algorithm's Context, in case metadata is needed. 
+            observation: An array of observations for the current time point, count data. 
+            particleArray: A list of particles, the Algorithm's self.particles list. 
+
+        Returns: 
+            A numpy array of the normalized weights. 
+            
+        """
+        weights = np.zeros(len(particleArray))
+
+        for i,particle in enumerate(particleArray):
+            for j in range(len(particle.observation)):
+                weights[i] += self.likelihood(np.round(observation[j]),particleArray[i].observation[j],R=particleArray[i].param['R'])
+
+
+        #weights = weights-np.max(weights) #normalize the weights wrt their maximum, improves numerical stability
+        weights = log_norm(weights) #normalize the log-weights using the jacobian logarithm
+        
+        return weights
+    
+    def resample(self, ctx: Context,particleArray:List[Particle]) -> List[Particle]:
+        """The actual resampling algorithm, the log variant of systematic resampling. 
+        
+        Args: 
+            ctx: The Algorithm's Context, holds the weights needed for resampling. 
+            particleArray: A list of particles, the Algorithm's self.particles list. 
+
+        Returns: 
+            Outputs the updated particle list. Note that as python lists are mutable and therefore passed by reference
+            we could forego the return, however I've found that for consistentcy purposes it's better to ensure the 
+            self.particles list in the Algorithm is updated via assignment.  
+
+        
+        The algorithm proceeds as follows, 
+
+        1. Generate the log-CDF via the jacobian logarithm. Currently uses the prior_weights, calls out to the jacob function in Utils which returns the whole vector of partial sums. 
+            
+        2. Resample using the standard systematic algorithm in the log domain. Note the value r is logged compared to the standard implementation, otherwise any systematic resampling literature
+        describes the algorithm. 
+        """
+        log_cdf = jacob(ctx.weights)
+        
+        i = 0
+        resampling_indices = np.zeros(ctx.particle_count)
+        u = ctx.rng.uniform(0,1/ctx.particle_count)
+        for j in range(0,ctx.particle_count): 
+            r = np.log(u + 1/ctx.particle_count * j)
+            while r > log_cdf[i]: 
+                i += 1
+            resampling_indices[j] = i
+
+        resampling_indices=resampling_indices.astype(int)
+
+        # Add new indices as a column in the sankey matrix
+        if ctx.run_sankey == True:
+            ctx.sankey_indices.append(resampling_indices)
+
+        particleCopy = particleArray.copy()
+        for i in range(len(particleArray)): 
+            particleArray[i] = Particle(particleCopy[resampling_indices[i]].param.copy(),particleCopy[resampling_indices[i]].state.copy(),particleCopy[resampling_indices[i]].observation)
+
+        return particleArray
