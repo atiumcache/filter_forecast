@@ -27,8 +27,13 @@ class ESTIMATION(Enum):
     STATIC_PER_LOCATION = -3
 
 
-@dataclass
+#@dataclass
 class Particle: 
+    def __init__(self, param, state, observation):
+        self.param = param
+        self.state = state
+        self.observation = observation
+
     '''The basic particle class'''
     param: Dict #a dictionary of parameters pertaining to the model of interest
     state: NDArray #underlying simulated state information

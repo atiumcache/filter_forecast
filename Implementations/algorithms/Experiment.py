@@ -53,7 +53,7 @@ class ExperimentAlgo(Algorithm):
         '''This function simulates the 7 days data to be '''
 
 
-    @timing
+    #@timing
     def run(self,data_path:str,runtime:int) ->None:
         '''The algorithms main run method, takes the time series data as a parameter and returns an output object encapsulating parameter and state values'''
 
@@ -65,33 +65,36 @@ class ExperimentAlgo(Algorithm):
         state = []
         mu = []
 
-        while(self.ctx.clock.time < runtime): 
+        for t in range(runtime): 
 
             #one step propagation 
             self.integrator.propagate(self.particles,self.ctx)
         
-            obv = data1[self.ctx.clock.time, :]
+            obv = data1[t, :]
             self.ctx.weights = self.resampler.compute_weights(self.ctx,obv,self.particles)
             self.particles = self.resampler.resample(self.ctx,self.particles)
-#            self.particles = self.perturb.randomly_perturb(self.ctx,self.particles) 
+            self.particles = self.perturb.randomly_perturb(self.ctx,self.particles) 
 
-            print(f"Iteration: {self.ctx.clock.time}")
+            print(f"Iteration: {t}")
 
             r_unavg = []
             k_unavg = []
             state_unavg = []
             mu_unavg = []
+
             for particle in self.particles:
                 r_unavg.append(particle.param["r"])
                 k_unavg.append(particle.param["k"])
                 state_unavg.append(particle.state)
                 mu_unavg.append(particle.param["mu"])
+
             r.append(np.average(np.array(r_unavg), weights=np.exp(self.ctx.weights)))
             k.append(np.average(np.array(k_unavg), axis=0 , weights=np.exp(self.ctx.weights)))
             state.append(np.average(np.array(state_unavg), axis=0, weights=np.exp(self.ctx.weights)))
             mu.append(np.average(np.array(mu_unavg), weights=np.exp(self.ctx.weights)))
 
-            self.ctx.clock.tick()
+            print(np.average(np.array(r_unavg), weights=np.exp(self.ctx.weights)))
+
         
 
         pd.DataFrame(r).to_csv('../datasets/r_quantiles.csv')
