@@ -373,10 +373,7 @@ class ExperimentPerturb(Perturb):
             self.particles list in the Algorithm is updated via assignment.  
 
         """
-        print("Before:", len(particleArray))
-        for i in range(len(particleArray)): 
-            rand = ctx.rng.normal(0,1)
-            particleArray[i].param["r"] = particleArray[i].param["r"] + np.sqrt(self.hyperparameters["sigma"])*rand
-        print("After:", len(particleArray))
+        for i in range(len(particleArray)):        
+            particleArray[i].param["r"] = min(np.exp(ctx.rng.normal(np.log(particleArray[i].param["r"]), self.hyperparameters['sigma'])), 0.15)
             
         return particleArray

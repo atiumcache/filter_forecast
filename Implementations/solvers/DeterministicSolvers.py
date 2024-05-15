@@ -526,6 +526,7 @@ class LSODASolverSEIARHD:
         
         return particleArray 
 
+
 class LSODACalvettiSolver(Integrator):
     
     def __init__(self) -> None:
@@ -580,17 +581,14 @@ class EulerSolverExperiment(Integrator):
     '''Propagates the state forward one step and returns an array of states and observations across the integration period'''
     def propagate(self,particleArray:List[Particle],ctx:Context)->List[Particle]: 
 
-        dt = 1
+        dt = 0.1
         #zero out the particleArray
         for particle in particleArray:
             particle.observation = np.zeros_like(particle.observation)
 
-
         for particle in particleArray:
 
             #one step forward 
-
-            
             for _ in range(int(1/dt)):
                 '''This loop runs over the particleArray, performing the integration in RHS for each one'''  
 
@@ -600,7 +598,6 @@ class EulerSolverExperiment(Integrator):
                     particle.state[i] += RHS_result[0] * dt
                     particle.observation[i] += RHS_result[1] *dt
         
-
         return particleArray
     
     def RHS_Logistic(self,state:NDArray[np.float_],param:Dict[str,float], obs_index):
