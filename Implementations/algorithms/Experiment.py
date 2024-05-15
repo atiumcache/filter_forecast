@@ -60,10 +60,7 @@ class ExperimentAlgo(Algorithm):
         data1 = pd.read_csv(data_path).to_numpy()
 
         '''Arrays to hold all the output data'''
-        r = []
-        k = []
-        state = []
-        mu = []
+        r, k, state, mu = ([] for i in range(4))
 
         for t in range(runtime): 
 
@@ -77,10 +74,7 @@ class ExperimentAlgo(Algorithm):
 
             print(f"Iteration: {t}")
 
-            r_unavg = []
-            k_unavg = []
-            state_unavg = []
-            mu_unavg = []
+            r_unavg, k_unavg, state_unavg, mu_unavg = ([] for i in range(4))
 
             for particle in self.particles:
                 r_unavg.append(particle.param["r"])
@@ -93,6 +87,7 @@ class ExperimentAlgo(Algorithm):
             state.append(np.average(np.array(state_unavg), axis=0, weights=np.exp(self.ctx.weights)))
             mu.append(np.average(np.array(mu_unavg), weights=np.exp(self.ctx.weights)))
 
+            # Debugging print
             print(np.average(np.array(r_unavg), weights=np.exp(self.ctx.weights)))
 
         
