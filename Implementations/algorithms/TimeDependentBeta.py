@@ -6,10 +6,8 @@ from Abstract.Resampler import Resampler
 from utilities.Utils import *
 from typing import Dict,Callable
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib import cm
-import plotly.graph_objects as go
-import plotly.express as px
+import streamlit as st
+
 from Implementations.sankey import visualize_particles
 
 from utilities.Utils import Context
@@ -80,6 +78,11 @@ class TimeDependentAlgo(Algorithm):
         observations = []
         gamma = []
 
+        progress_bar = st.progress(0, text="Filtering... Please wait...")
+
+        if st.button("Abort", type="primary"):
+            exit()
+
         while(self.ctx.clock.time < runtime): 
  
 
@@ -106,19 +109,22 @@ class TimeDependentAlgo(Algorithm):
             gamma.append(np.mean([particle.param['gamma'] for particle in self.particles]))
             observations.append(quantiles([particle.observation for particle in self.particles]))
 
-            print(f"Iteration: {self.ctx.clock.time}")
+            progress_bar.progress(self.ctx.clock.time/runtime, text="Filtering... Please wait...")
             self.ctx.clock.tick()
 
-        pd.DataFrame(beta).to_csv('../datasets/average_beta.csv')
-        pd.DataFrame(eta).to_csv('../datasets/average_eta.csv')
-        pd.DataFrame(gamma).to_csv('../datasets/average_gamma.csv')
+        progress_bar.empty()
+        st.subheader("Beta:")
+        st.line_chart(data = pd.DataFrame(beta))
+        pd.DataFrame(eta)
+        pd.DataFrame(gamma)
 
-        pd.DataFrame(beta_quantiles).to_csv('../datasets/beta_quantiles.csv')
-        pd.DataFrame(eta_quantiles).to_csv('../datasets/eta_quantiles.csv')
-        pd.DataFrame(gamma_quantiles).to_csv('../datasets/gamma_quantiles.csv')
-        pd.DataFrame(observations).to_csv('../datasets/particle_observation.csv')
+        st.subheader("Beta Quantiles:")
+        st.line_chart(pd.DataFrame(beta_quantiles))
+        pd.DataFrame(eta_quantiles)
+        pd.DataFrame(gamma_quantiles)
+        pd.DataFrame(observations)
 
-        pd.DataFrame(state).to_csv('../datasets/ESTIMATED_STATE.csv')            
+        pd.DataFrame(state)
 
         state_quantiles = np.array(state_quantiles)
         beta_quantiles = np.array(beta_quantiles)
