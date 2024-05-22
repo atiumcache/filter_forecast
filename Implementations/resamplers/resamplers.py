@@ -1,66 +1,13 @@
 from utilities.Utils import Particle,Context
 from Abstract.Resampler import Resampler
 from utilities.Utils import log_norm,jacob
+from scipy.stats import poisson
 from typing import List
 import numpy as np
 import math
 from numpy.typing import NDArray
 from utilities.likelihood_functions import *
-
-
-class NBinomResample(Resampler): 
-    
-    def __init__(self) -> None:
-        """The resampler for the negative binomal distribution, supports a variety of likelihood functions which are listed in resamplers/likelihood_functions."""
-        super().__init__(likelihood=likelihood_NB_r)
-
-    def compute_weights(self, ctx:Context,observation: NDArray, particleArray:List[Particle]) -> NDArray[np.float64]:
-        """Computes the prior weights of the particles given an observation at time t from the time series. 
-        
-        Args: 
-            ctx: The Algorithm's Context, in case metadata is needed. 
-            observation: An array of observations for the current time point, count data. 
-            particleArray: A list of particles, the Algorithm's self.particles list. 
-
-        Returns: 
-            A numpy array of the normalized weights. 
-            
-        """
-
-
-        weights = np.zeros(len(particleArray))#initialize weights as an array of zeros
-
-        for i in range(len(particleArray)): 
-            weights[i] = self.likelihood(np.round(observation),particleArray[i].observation,R=particleArray[i].param['R'])
-            '''iterate over the particles and call the likelihood function for each one '''
-
-        weights = weights/np.sum(weights)#normalize the weights
-        
-        
-        return np.squeeze(weights)
-    
-    def resample(self, ctx: Context,particleArray:List[Particle]) -> List[Particle]:
-        '''This is a basic resampling method, more advanced methods like systematic resampling need to override this'''    
-
-        indexes = np.arange(ctx.particle_count) #create a cumulative ndarray from 0 to particle_count
-
-        #The numpy resampling algorithm, see jupyter notebnook resampling.ipynb for more details
-        new_particle_indexes = ctx.rng.choice(a=indexes, size=ctx.particle_count, replace=True, p=ctx.weights)
-
-        # Add new indices as a column in the sankey matrix
-        if ctx.run_sankey == True:
-            ctx.sankey_indices.append(new_particle_indexes)
-
-        particleCopy = particleArray.copy()#copy the particle array refs to ensure we don't overwrite particles
-
-        #this loop reindexes the particles by rebuilding the particles
-        for i in range(len(particleArray)): 
-            particleArray[i] = Particle(particleCopy[new_particle_indexes[i]].param.copy(),
-                                        particleCopy[new_particle_indexes[i]].state.copy(),
-                                        particleCopy[new_particle_indexes[i]].observation)
-
-        return particleArray
-
+import copy
 
 class LogNBinomResample(Resampler): 
     def __init__(self) -> None:
@@ -161,7 +108,7 @@ class PoissonResample(Resampler):
         
         weights = np.zeros(len(particleArray))#initialize weights as an array of zeros
         for i in range(len(particleArray)): 
-            weights[i] = self.likelihood(np.round(observation),particleArray[i].observation,var = 0)
+            weights[i] = self.likelihood(np.round(observation),particleArray[i].observation)
             '''iterate over the particles and call the likelihood function for each one '''
 
         weights = weights/np.sum(weights)#normalize the weights
@@ -205,6 +152,7 @@ class PoissonResample(Resampler):
         return particleArray
     
 class LogNBinomResampleExperiment(Resampler): 
+
     def __init__(self) -> None:
         """Resampler using a negative binomial likelihood function with estimated variance and log resampling step from 
         C. Gentner, S. Zhang, and T. Jost, “Log-PF: particle filtering in logarithm domain,” Journal of Electrical and Computer Engineering, vol. 2018, Article ID 5763461, 11 pages, 2018."""
@@ -227,11 +175,16 @@ class LogNBinomResampleExperiment(Resampler):
         for i,particle in enumerate(particleArray):
             for j in range(len(particle.observation)):
                 weights[i] += self.likelihood(np.round(observation[j]),particleArray[i].observation[j],R=particleArray[i].param['R'])
-
+                #weights[i] += norm.logpdf(np.round(observation[j]),particleArray[i].observation[j],scale=50)
+        #print("Before" ,np.mean(np.exp(weights)))
 
         #weights = weights-np.max(weights) #normalize the weights wrt their maximum, improves numerical stability
         weights = log_norm(weights) #normalize the log-weights using the jacobian logarithm
-        
+
+
+
+        #print("After", np.mean(np.exp(weights)))
+
         return weights
     
     def resample(self, ctx: Context,particleArray:List[Particle]) -> List[Particle]:
@@ -273,6 +226,66 @@ class LogNBinomResampleExperiment(Resampler):
 
         particleCopy = particleArray.copy()
         for i in range(len(particleArray)): 
-            particleArray[i] = Particle(particleCopy[resampling_indices[i]].param.copy(),particleCopy[resampling_indices[i]].state.copy(),particleCopy[resampling_indices[i]].observation)
+            particleArray[i] = Particle(copy.deepcopy(particleCopy[resampling_indices[i]].param),particleCopy[resampling_indices[i]].state.copy(),particleCopy[resampling_indices[i]].observation.copy())
 
         return particleArray
+
+class PoissonResampleExperiment(Resampler): 
+
+    def __init__(self) -> None:
+        """Resampler using a negative binomial likelihood function with estimated variance and log resampling step from 
+        C. Gentner, S. Zhang, and T. Jost, “Log-PF: particle filtering in logarithm domain,” Journal of Electrical and Computer Engineering, vol. 2018, Article ID 5763461, 11 pages, 2018."""
+        super().__init__(log_likelihood_norm)
+
+    def compute_weights(self, ctx:Context,observation: NDArray[np.int_], particleArray:List[Particle]) -> NDArray[np.float64]:
+        """Computes the prior weights of the particles given an observation at time t from the time series. 
+        
+        Args: 
+            ctx: The Algorithm's Context, in case metadata is needed. 
+            observation: An array of observations for the current time point, count data. 
+            particleArray: A list of particles, the Algorithm's self.particles list. 
+
+        Returns: 
+            A numpy array of the normalized weights. 
+            
+        """
+        weights = np.zeros(len(particleArray))
+
+        for i,particle in enumerate(particleArray):
+            for j in range(len(particle.observation)):
+                print(poisson.pmf(np.round(observation[j]),particleArray[i].observation[j]))
+                weights[i] *= poisson.pmf(np.round(observation[j]),particleArray[i].observation[j])
+
+                #weights[i] += norm.logpdf(np.round(observation[j]),particleArray[i].observation[j],scale=50)
+        #print("Before" ,np.mean(np.exp(weights)))
+
+        #weights = weights-np.max(weights) #normalize the weights wrt their maximum, improves numerical stability
+        weights /= np.sum(weights) #normalize the log-weights using the jacobian logarithm
+
+
+        return weights
+    
+    def resample(self, ctx: Context,particleArray:List[Particle]) -> List[Particle]:
+
+
+        indices = np.arange(ctx.particle_count) #create a cumulative ndarray from 0 to particle_count
+
+        #The numpy resampling algorithm, see jupyter notebnook resampling.ipynb for more details
+        resampling_indices = ctx.rng.choice(a=indices, size=ctx.particle_count, replace=True, p=ctx.weights)
+
+        # Add new indices as a column in the sankey matrix
+        if ctx.run_sankey == True:
+            ctx.sankey_indices.append(resampling_indices)
+
+        particleCopy = particleArray.copy()#copy the particle array refs to ensure we don't overwrite particles
+
+        #this loop reindexes the particles by rebuilding the particles
+        for i in range(len(particleArray)): 
+            particleArray[i] = Particle(particleCopy[resampling_indices[i]].param.copy(),
+                                        particleCopy[resampling_indices[i]].state.copy(),
+                                        particleCopy[resampling_indices[i]].observation.copy())
+
+
+    
+        return particleArray
+

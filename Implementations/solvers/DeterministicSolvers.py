@@ -144,6 +144,15 @@ def RHS_Calvetti(t:float,y:NDArray[np.float_],par:Dict[str,float]):
 
     return np.array([dS,dE,dI,dR,d_newI])
 
+def RHS_Logistic(t:float,state:NDArray[np.float_],param:Dict[str,float], obs_index:int):
+    #params has all the parameters – beta, gamma
+    #state is a numpy array
+
+    dN = param["r"] * state[0] * (1 - state[0]/param["k"][obs_index]) - param["mu"]*state[0]
+    #dN = param["r"] * state[0] * (1 - state[0]/param["k"]) - param["mu"]*state[0]
+
+    return np.array([dN])
+
 class EulerSolver(Integrator): 
     
 
@@ -571,8 +580,7 @@ class LSODACalvettiSolver(Integrator):
 
 
         return particleArray 
-
-    
+   
 class EulerSolverExperiment(Integrator): 
     '''Uses the SIRSH model with a basic euler integrator to obtain the predictions for the state'''
     def __init__(self) -> None:
@@ -609,3 +617,46 @@ class EulerSolverExperiment(Integrator):
 
         return np.array([dN, new_N])
     
+class LSODASolverExperimentLogistic(Integrator): 
+    def __init__(self) -> None:
+        """A one step integrator of Alex's SIRH model using LSODA or RK45 if the jacobian is not available."""
+        super().__init__()
+
+    def propagate(self,particleArray:List[Particle],ctx:Context)->List[Particle]: 
+        """Propagates the state forward one step and returns an array of states and observations across the the integration period
+        
+        Args: 
+            particleArray: A list of particles, this will be self.particles from Algorithm. 
+            ctx: The Algorithm's context object is passed as well, in case algorithm metadata is needed. 
+
+        Returns: 
+            Outputs the updated particle list. Note that as python lists are mutable and therefore passed by reference
+            we could forego the return, however I've found that for consistentcy purposes it's better to ensure the 
+            self.particles list in the Algorithm is updated via assignment. 
+
+        """
+
+
+        for i,particle in enumerate(particleArray): 
+
+
+            for j in range(len(particle.observation)): 
+
+                t_span = [0.0,1.0]
+                par = particle.param
+
+                state = np.array([particle.state[j]])
+
+                sol =  solve_ivp(fun=lambda t,y: RHS_Logistic(t,y,par,j),  
+                                t_span=(0.0,1.0),
+                                y0=state,
+                                t_eval=t_span,
+                                method='RK45',rtol=1e-3,atol=1e-3)
+
+
+                particleArray[i].state[j] = sol.y[0,1]
+
+                particleArray[i].observation[j] = sol.y[0,1]
+
+        return particleArray 
+

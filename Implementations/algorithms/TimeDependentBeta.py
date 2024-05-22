@@ -82,7 +82,22 @@ class TimeDependentAlgo(Algorithm):
             self.particles = self.resampler.resample(self.ctx,self.particles)
             self.particles = self.perturb.randomly_perturb(self.ctx,self.particles) 
             
-            
+            beta_unavg, eta_unavg, gamma_unavg = ([] for i in range(3))
+
+            for particle in self.particles:
+                beta_unavg.append(particle.param["beta"])
+                eta_unavg.append(particle.param["eta"])
+                gamma_unavg.append(particle.param["gamma"])
+
+            beta.append(np.average(np.array(beta_unavg), weights=(self.ctx.weights)))
+            eta.append(np.average(np.array(eta_unavg), axis=0 , weights=(self.ctx.weights)))
+            gamma.append(np.average(np.array(gamma_unavg), weights=(self.ctx.weights)))
+
+            #Debugging print
+            print("beta:",np.average(np.array(beta_unavg), weights=(self.ctx.weights)))
+            print("gamma:",np.average(np.array(gamma_unavg), weights=(self.ctx.weights),axis=0))
+            print("eta:",np.average(np.array(eta_unavg), weights=(self.ctx.weights),axis=0))
+        
 
             print(f"Iteration: {self.ctx.clock.time}")
             self.ctx.clock.tick()

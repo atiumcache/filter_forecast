@@ -34,9 +34,7 @@ class ExperimentAlgo(Algorithm):
                 if((p_params[key] == ESTIMATION.STATIC) or (p_params[key] == ESTIMATION.VARIABLE)): 
                     p_params[key] = priors[key]()
                 elif (p_params[key] == ESTIMATION.STATIC_PER_LOCATION):
-                    p_params[key] = np.zeros(self.ctx.state_size)
-                    for i in range(self.ctx.state_size):
-                        p_params[key][i] = priors[key]()
+                    p_params[key] = priors[key]()
 
 
             seeds = []
@@ -59,17 +57,22 @@ class ExperimentAlgo(Algorithm):
 
         data1 = pd.read_csv(data_path).to_numpy()
 
+        data1 = data1[150:,:]
+
         '''Arrays to hold all the output data'''
         r, k, state, mu = ([] for i in range(4))
 
         for t in range(runtime): 
 
             #one step propagation 
-            self.integrator.propagate(self.particles,self.ctx)
-        
+            self.particles = self.integrator.propagate(self.particles,self.ctx)
+
             obv = data1[t, :]
+
             self.ctx.weights = self.resampler.compute_weights(self.ctx,obv,self.particles)
+
             self.particles = self.resampler.resample(self.ctx,self.particles)
+
             self.particles = self.perturb.randomly_perturb(self.ctx,self.particles) 
 
             print(f"Iteration: {t}")
@@ -82,14 +85,15 @@ class ExperimentAlgo(Algorithm):
                 state_unavg.append(particle.state)
                 mu_unavg.append(particle.param["mu"])
 
-            r.append(np.average(np.array(r_unavg), weights=np.exp(self.ctx.weights)))
-            k.append(np.average(np.array(k_unavg), axis=0 , weights=np.exp(self.ctx.weights)))
-            state.append(np.average(np.array(state_unavg), axis=0, weights=np.exp(self.ctx.weights)))
-            mu.append(np.average(np.array(mu_unavg), weights=np.exp(self.ctx.weights)))
+            r.append(np.average(np.array(r_unavg), weights=(self.ctx.weights)))
+            k.append(np.average(np.array(k_unavg), axis=0 , weights=(self.ctx.weights)))
+            state.append(np.average(np.array(state_unavg), axis=0, weights=(self.ctx.weights)))
+            mu.append(np.average(np.array(mu_unavg), weights=(self.ctx.weights)))
 
-            # Debugging print
-            print(np.average(np.array(r_unavg), weights=np.exp(self.ctx.weights)))
-
+            #Debugging print
+            print("r:",np.average(np.array(r_unavg), weights=(self.ctx.weights)))
+            print("k:",np.average(np.array(k_unavg), weights=(self.ctx.weights),axis=0))
+            print("mu:",np.average(np.array(mu_unavg), weights=(self.ctx.weights),axis=0))
         
 
         pd.DataFrame(r).to_csv('../datasets/r_quantiles.csv')
