@@ -1,6 +1,6 @@
 import os
 import subprocess
-from pathos.multiprocessing import ProcessingPool as Pool
+from multiprocessing import Pool
 import pandas as pd
 import LSODA_forecast
 import particle_filter
