@@ -53,8 +53,8 @@ def main():
                     "Rscript",
                     "./r_scripts/beta_trend_forecast.R",
                     working_dir,
-                    output_dir,:working_dir
-                    location_code,
+                    output_dir,
+                    location_code
                 ]
             )
             datetime_now = datetime.datetime.now()

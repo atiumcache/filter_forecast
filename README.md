@@ -32,8 +32,7 @@ We compare the WIS accuracy between particle filter and MCMC methods.
 
 ## Implementation Details
 
-See `cluster_main.py` for the logic that runs the program on the HPC cluster.
-
+Currently, `parallel_all_states.py` is the main entry point to run the script across all locations and all dates.
 
 ## Particle Filter Credits
 Particle filter code derived from:   
