@@ -4,7 +4,7 @@ import logging
 import datetime
 import ray
 from multiprocessing import Pool
-from filter_forecast.helpers import process_date
+from filter_forecast.process_date import process_date
 
 @ray.remote
 def run_script_on_one_state(location_code, predict_from_dates, location_to_state, working_dir, logger):
