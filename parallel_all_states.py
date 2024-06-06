@@ -1,6 +1,6 @@
 import os
 import subprocess
-from multiprocessing import Pool
+from pathos.multiprocessing import ProcessingPool as Pool
 import pandas as pd
 import LSODA_forecast
 import particle_filter
@@ -9,10 +9,7 @@ import datetime
 import ray
 
 
-logger = logging.getLogger(__name__)
-
-
-def process_date(location_code, date, location_to_state, working_dir):
+def process_date(location_code, date, location_to_state, working_dir, logger):
     # Generate beta estimates from observed hospitalizations
     particle_filter.main(location_code, date)
     datetime_now = datetime.datetime.now()
@@ -50,10 +47,10 @@ def process_date(location_code, date, location_to_state, working_dir):
 
 
 @ray.remote
-def run_script_on_one_state(location_code, predict_from_dates, location_to_state, working_dir):
+def run_script_on_one_state(location_code, predict_from_dates, location_to_state, working_dir, logger):
     with Pool() as pool:
         tasks = [
-            (location_code, date, location_to_state, working_dir)
+            (location_code, date, location_to_state, working_dir, logger)
             for date in predict_from_dates["date"]
         ]
         pool.starmap(process_date, tasks)
@@ -61,6 +58,7 @@ def run_script_on_one_state(location_code, predict_from_dates, location_to_state
 
 def main():
     total_start_time = datetime.datetime.now()
+    logger = logging.getLogger(__name__)
     logging.basicConfig(filename="output.log", level=logging.INFO)
 
     # Initialize location mappings and 'predict-from' dates.
@@ -72,7 +70,7 @@ def main():
 
     tasks = []
     for location_code in locations["location"].unique():
-        tasks.append(run_script_on_one_state.remote(location_code, predict_from_dates, location_to_state, working_dir))
+        tasks.append(run_script_on_one_state.remote(location_code, predict_from_dates, location_to_state, working_dir, logger))
 
     ray.get(tasks)
 
